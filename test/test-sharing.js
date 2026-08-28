@@ -104,3 +104,53 @@ module.exports = function run() {
     assert(threw, 'expected a cycle to be detected');
   });
 };
+
+// Regression coverage for a cache bug found while benchmarking: criteria based
+// rules were evaluated once per record and then cached forever, so a row that
+// stopped matching its rule stayed visible to everyone the rule had granted.
+module.exports.cacheInvalidation = function run(out) {
+  const { test, assert, assertEqual } = require('./harness');
+  const { buildOrg } = require('../src/seed');
+
+  const org = buildOrg({ counts: { accounts: 200, contacts: 100, opportunities: 300, cases: 80 } });
+  const { store, sharing, users } = org;
+  const ctx = { parentLookup: (obj, id) => { const t = store.tables.get(obj); return t ? t.get(id) : null; } };
+
+  test('access is withdrawn as soon as a record stops matching its sharing rule', () => {
+    const support = users.find((u) => u.id === 'u_support_0');
+    const acc = store.table('Account').all().find((a) => a.industry === 'Technology' && a.tier !== 'Enterprise' && a.ownerId !== support.id);
+    assert(!!acc, 'found a technology account granted only by the rule');
+    assertEqual(sharing.resolve(support, 'Account', acc, ctx), 'read', 'granted while the criteria holds');
+    store.table('Account').update(acc.id, { industry: 'Retail' });
+    const after = store.table('Account').get(acc.id);
+    assertEqual(sharing.resolve(support, 'Account', after, ctx), 'none', 'withdrawn once the criteria stops holding');
+    assertEqual(sharing.resolveNaive(support, 'Account', after, ctx), 'none', 'reference agrees');
+  });
+
+  test('access is granted as soon as a record starts matching its sharing rule', () => {
+    const support = users.find((u) => u.id === 'u_support_1');
+    const acc = store.table('Account').all().find((a) => a.industry !== 'Technology' && a.tier !== 'Enterprise' && sharing.resolve(support, 'Account', a, ctx) === 'none');
+    assert(!!acc, 'found an account the support user cannot see');
+    store.table('Account').update(acc.id, { industry: 'Technology' });
+    const after = store.table('Account').get(acc.id);
+    assertEqual(sharing.resolve(support, 'Account', after, ctx), 'read', 'granted once the criteria starts holding');
+    assertEqual(sharing.resolveNaive(support, 'Account', after, ctx), 'read', 'reference agrees');
+  });
+
+  test('the optimized and reference resolvers still agree after a mutation sweep', () => {
+    const accounts = store.table('Account').all();
+    for (let i = 0; i < accounts.length; i += 3) {
+      store.table('Account').update(accounts[i].id, { industry: i % 2 === 0 ? 'Technology' : 'Energy', tier: i % 5 === 0 ? 'Enterprise' : 'SMB' });
+    }
+    let pairs = 0;
+    let mismatches = 0;
+    for (const acc of store.table('Account').all()) {
+      for (const user of users) {
+        pairs += 1;
+        if (sharing.resolve(user, 'Account', acc, ctx) !== sharing.resolveNaive(user, 'Account', acc, ctx)) mismatches += 1;
+      }
+    }
+    assertEqual(mismatches, 0, 'no drift after ' + pairs + ' post mutation comparisons');
+    if (out) out.postMutationSweep = { pairs: pairs, mismatches: mismatches };
+  });
+};

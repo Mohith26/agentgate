@@ -4,8 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const harness = require('./harness');
 
+const sharingSuite = require('./test-sharing');
+
 const suites = [
-  ['sharing', require('./test-sharing')],
+  ['sharing', sharingSuite],
+  ['sharing-cache', sharingSuite.cacheInvalidation],
   ['oracle', require('./test-oracle')],
   ['query', require('./test-query')],
   ['limits', require('./test-limits')],

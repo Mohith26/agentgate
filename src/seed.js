@@ -190,6 +190,7 @@ function buildOrg(opts) {
     sharing.addManualShare({ object: 'Account', recordId: acc.id, userId: user.id, access: 'read' });
   }
 
+  sharing.bindTo(store);
   sharing.compile();
   return { store: store, sharing: sharing, users: users, counts: counts };
 }

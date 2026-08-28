@@ -11,7 +11,12 @@ class Table {
     this.pk = opts.pk || 'id';
     this.rows = new Map();
     this.indexes = new Map();
+    this.onChange = opts.onChange || null;
     (opts.indexes || []).forEach((f) => this.indexes.set(f, new Map()));
+  }
+
+  _notify(op, row) {
+    if (this.onChange) this.onChange(this.name, op, row);
   }
 
   _indexAdd(row) {
@@ -40,6 +45,7 @@ class Table {
     const copy = Object.assign({}, row);
     this.rows.set(id, copy);
     this._indexAdd(copy);
+    this._notify('insert', copy);
     return copy;
   }
 
@@ -53,6 +59,7 @@ class Table {
     next[this.pk] = id;
     this.rows.set(id, next);
     this._indexAdd(next);
+    this._notify('update', next);
     return next;
   }
 
@@ -61,6 +68,7 @@ class Table {
     if (!cur) return false;
     this._indexRemove(cur);
     this.rows.delete(id);
+    this._notify('remove', cur);
     return true;
   }
 
@@ -76,11 +84,18 @@ class Table {
 }
 
 class Store {
-  constructor() { this.tables = new Map(); }
+  constructor() { this.tables = new Map(); this.listeners = []; }
+
+  // Anything that caches a decision about a row needs to hear when the row
+  // changes underneath it.
+  onChange(fn) { this.listeners.push(fn); return this; }
 
   define(name, opts) {
     if (this.tables.has(name)) throw new Error('table already defined: ' + name);
-    const t = new Table(name, opts);
+    const self = this;
+    const t = new Table(name, Object.assign({}, opts, {
+      onChange: (table, op, row) => { for (const fn of self.listeners) fn(table, op, row); },
+    }));
     this.tables.set(name, t);
     return t;
   }

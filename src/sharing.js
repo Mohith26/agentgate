@@ -96,12 +96,28 @@ class SharingModel {
       this._shareIndex.set(key, prev ? maxLevel(prev, s.access) : s.access);
     }
 
+    // recordKey -> (ruleId -> matched). Keyed by record so a single row change
+    // can drop everything cached about that row in one delete.
     this._criteriaCache = new Map();
     this._dirty = false;
     return this;
   }
 
   _ensure() { if (this._dirty) this.compile(); }
+
+  // Criteria are evaluated against live field values, so a cached match is only
+  // valid until the row changes. Wire this to the store's change feed.
+  invalidateRecord(object, recordId) {
+    if (!this._criteriaCache) return;
+    this._criteriaCache.delete(object + '\u0001' + recordId);
+  }
+
+  invalidateAll() { if (this._criteriaCache) this._criteriaCache.clear(); }
+
+  bindTo(store) {
+    store.onChange((object, op, row) => this.invalidateRecord(object, row.id));
+    return this;
+  }
 
   // resolve(user, object, record, ctx) -> 'none' | 'read' | 'edit'
   // ctx.parentLookup(object, id) supplies the parent row for objects whose
@@ -136,13 +152,15 @@ class SharingModel {
       if (level === 'edit') return 'edit';
     }
 
+    const recordKey = object + '\u0001' + record.id;
+    let perRecord = this._criteriaCache.get(recordKey);
     for (const rule of (this._rulesByObject.get(object) || [])) {
       if (!rule.grantees.has(user.id)) continue;
-      const cacheKey = rule.id + '\u0001' + record.id;
-      let matched = this._criteriaCache.get(cacheKey);
+      if (!perRecord) { perRecord = new Map(); this._criteriaCache.set(recordKey, perRecord); }
+      let matched = perRecord.get(rule.id);
       if (matched === undefined) {
         matched = !!rule.criteria(record);
-        this._criteriaCache.set(cacheKey, matched);
+        perRecord.set(rule.id, matched);
       }
       if (matched) {
         level = maxLevel(level, rule.access);

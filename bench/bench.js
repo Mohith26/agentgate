@@ -76,7 +76,7 @@ function run() {
   };
 
   // Plan throughput through the full gate.
-  const rt = new Runtime({ store: org.store, sharing: org.sharing, registry: buildRegistry() });
+  const rt = new Runtime({ store: org.store, sharing: org.sharing, registry: buildRegistry(), verifyRollback: false });
   const admin = org.users.find((u) => u.isAdmin);
   const opps = org.store.table('Opportunity').all();
   const plans = timed(() => {

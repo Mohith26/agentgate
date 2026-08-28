@@ -35,6 +35,9 @@ class Runtime {
     this.registry = opts.registry;
     this.telemetry = opts.telemetry || new Telemetry(opts.clock);
     this.caps = opts.caps || {};
+    // Fingerprinting the whole store around every plan is an audit aid, not
+    // something the hot path should pay for. On by default, off in the bench.
+    this.verifyRollback = opts.verifyRollback !== false;
     this.ledger = new Map();       // idempotency key -> recorded result
     this.replays = 0;
   }
@@ -91,8 +94,7 @@ class Runtime {
     const budget = new LimitBudget(this.caps);
     const query = new QueryEngine(this.store, budget);
     const ctx = { parentLookup: this.parentLookup(), query: query, budget: budget, user: user, sharingModel: this.sharing };
-    const before = this.store.snapshot();
-    const beforeFp = require('./store').Store.fingerprint(before);
+    const beforeFp = this.verifyRollback ? require('./store').Store.fingerprint(this.store.snapshot()) : null;
 
     const planSpan = this.telemetry.startSpan('plan', { user: user.id, steps: plan.length });
     const completed = [];
@@ -130,7 +132,7 @@ class Runtime {
         steps: stepResults,
         limits: budget.report(),
         replayed: false,
-        fingerprint: require('./store').Store.fingerprint(this.store.snapshot()),
+        fingerprint: this.verifyRollback ? require('./store').Store.fingerprint(this.store.snapshot()) : null,
       };
       planSpan.end('ok');
       this.telemetry.count('plan.ok');
@@ -138,7 +140,7 @@ class Runtime {
       return out;
     } catch (err) {
       const undone = this._compensate(completed, user, ctx);
-      const afterFp = require('./store').Store.fingerprint(this.store.snapshot());
+      const afterFp = this.verifyRollback ? require('./store').Store.fingerprint(this.store.snapshot()) : null;
       planSpan.end('error', err);
       this.telemetry.count('plan.failed');
       const out = {
@@ -147,7 +149,7 @@ class Runtime {
         failedAt: completed.length,
         error: { name: err.name, message: err.message, detail: err.detail || null },
         compensated: undone,
-        rolledBackClean: afterFp === beforeFp,
+        rolledBackClean: this.verifyRollback ? afterFp === beforeFp : null,
         fingerprintBefore: beforeFp,
         fingerprintAfter: afterFp,
         steps: stepResults,

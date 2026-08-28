@@ -1,0 +1,12 @@
+{
+  "name": "agentgate",
+  "version": "1.0.0",
+  "description": "Record level access gate and rollback safe action runtime for CRM agents",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node test/run-all.js",
+    "bench": "node bench/bench.js"
+  },
+  "license": "MIT",
+  "private": false
+}

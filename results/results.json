@@ -1,0 +1,131 @@
+{
+  "generatedAt": "2026-08-28T13:33:04.757Z",
+  "tests": {
+    "total": 40,
+    "asserts": 1160,
+    "failures": []
+  },
+  "perSuite": [
+    {
+      "suite": "sharing",
+      "tests": 9,
+      "asserts": 555
+    },
+    {
+      "suite": "sharing-cache",
+      "tests": 3,
+      "asserts": 8
+    },
+    {
+      "suite": "oracle",
+      "tests": 2,
+      "asserts": 7
+    },
+    {
+      "suite": "query",
+      "tests": 9,
+      "asserts": 113
+    },
+    {
+      "suite": "limits",
+      "tests": 6,
+      "asserts": 17
+    },
+    {
+      "suite": "runtime",
+      "tests": 11,
+      "asserts": 460
+    }
+  ],
+  "evidence": {
+    "postMutationSweep": {
+      "pairs": 6000,
+      "mismatches": 0
+    },
+    "oracleSweep": {
+      "pairs": 120000,
+      "mismatches": [],
+      "overPermissive": 0,
+      "underPermissive": 0,
+      "grantedRead": 4958,
+      "grantedEdit": 24553,
+      "denied": 90489
+    },
+    "visibilityPushdown": {
+      "user": "u_rep_0a",
+      "total": 600,
+      "visible": 24
+    },
+    "limitCutoff": {
+      "cap": 3,
+      "ranBeforeCutoff": 3,
+      "rolledBackClean": true
+    },
+    "rollbackScenarios": {
+      "scenarios": 5,
+      "cleanRollbacks": 5
+    },
+    "idempotency": {
+      "duplicateSubmissions": 200,
+      "reExecutions": 0,
+      "ledgerHits": 200
+    }
+  },
+  "bench": {
+    "dataset": {
+      "users": 30,
+      "roles": 17,
+      "accounts": 500,
+      "contacts": 1500,
+      "opportunities": 1200,
+      "cases": 800,
+      "sharingRules": 4,
+      "manualShares": 65
+    },
+    "accessDecisions": {
+      "pairs": 120000,
+      "optimized_ms": 23.97,
+      "reference_ms": 67.32,
+      "optimized_per_sec": 5005927,
+      "reference_per_sec": 1782624,
+      "speedup": 2.81,
+      "grantedByOptimized": 29511,
+      "grantedByReference": 29511
+    },
+    "filteredQueries": {
+      "queries": 200,
+      "rowsReturned": 48598,
+      "ms": 46.61,
+      "queries_per_sec": 4291,
+      "rowsScanned": 240000
+    },
+    "planExecution": {
+      "plans": 5000,
+      "succeeded": 5000,
+      "ms": 8.71,
+      "plans_per_sec": 573872,
+      "latency": {
+        "count": 5000,
+        "mean_ms": 0.001,
+        "p50_ms": 0.0009,
+        "p95_ms": 0.0017,
+        "p99_ms": 0.0025,
+        "max_ms": 0.0185
+      }
+    },
+    "gate": {
+      "attempts": 1000,
+      "denied": 1000,
+      "allowed": 0
+    },
+    "oracleSweep": {
+      "pairs": 120000,
+      "mismatches": 0,
+      "overPermissive": 0,
+      "underPermissive": 0,
+      "grantedEdit": 24553,
+      "grantedRead": 4183,
+      "denied": 91264
+    }
+  }
+}
